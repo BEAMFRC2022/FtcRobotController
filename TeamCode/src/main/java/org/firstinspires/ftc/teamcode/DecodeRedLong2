@@ -1,0 +1,118 @@
+package org.firstinspires.ftc.teamcode;
+
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
+import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+
+//@Disabled  //add "//" to comment this out if the OpMode is enabled
+
+/* Created by Phil Malone. 2023.
+    This class illustrates my simplified Odometry Strategy.
+    It implements basic straight line motions but with heading and drift controls to limit drift.
+    See the readme for a link to a video tutorial explaining the operation and limitations of the code.
+ */
+
+/*
+ * This OpMode illustrates an autonomous opmode using simple Odometry
+ * All robot functions are performed by an external "Robot" class that manages all hardware interactions.
+ * Pure Drive or Strafe motions are maintained using two Odometry Wheels.
+ * The IMU gyro is used to stabilize the heading during all motions
+ */
+
+@Autonomous(name="Decode Red Long")
+public class DecodeRedLong extends LinearOpMode
+{
+
+    // BEAM: this is your list of variables for things like power, etc.
+
+    private double drivePower = 0.9;    //power level for drive and strafe
+    private double turnPower = 0.6;    //power level for turning
+    private double wait1 = 0.2;         //wait time in seconds
+
+
+
+    // get an instance of the "Robot" class.
+    private SimplifiedOdometryRobot robot = new SimplifiedOdometryRobot(this);
+
+    @Override public void runOpMode()
+    {
+        // Initialize the robot hardware & Turn on telemetry
+        robot.initialize(true);
+
+        // Wait for driver to press start
+        telemetry.addData(">", "Touch Play to run Auto");
+        telemetry.update();
+
+        waitForStart();
+
+        // Run Auto if stop was not pressed.
+        if (opModeIsActive())
+        {
+
+            /*
+                To use robot.drive and robot.strafe:
+                First number is distance.  Positive for forward and left, Negative for back and right.
+                Second number is power.  Always positive, between 0 and 1 (Full power).
+                Third number is wait time, this is a wait after you reach your position
+                    to make sure the robot has stopped moving.
+            */
+
+            /*
+                To use robot.turn:
+                First number is degrees.  Positive for counter-clockwise.
+                Second number is power.  Always positive, between 0 and 1 (Full power).
+                Third number is wait time, this is a wait after you reach your position
+                    to make sure the robot has stopped moving.
+            */
+
+            // Note, this example takes more than 30 seconds to execute.
+            // Try out different power levels and wait times to speed this up!
+
+            //Remember:
+            //Forward is positive
+            //Left is positive
+            //Counter clockwise is positive
+
+            //Move from wall to shooting position
+            robot.drive(4, drivePower, wait1);
+            robot.turn(-21, turnPower, wait1);
+            //shoot
+            sleep(1000);
+            //move to first set of artifacts
+            robot.drive(28, drivePower, wait1);
+            robot.turn(108, turnPower, wait1);
+            //intake on
+            // robot.intake.setPower(1);
+            //intake the artifacts, drive slower while intaking
+            robot.drive(-33, 0.4, wait1);
+            robot.drive(33, drivePower, wait1);
+            //return to launch position
+            robot.turn(-108, turnPower, wait1);
+            robot.drive(-28, drivePower, wait1);
+            // robot.intake.setPower(0);
+            //shoot
+            sleep(1000);
+            //Move to second set of artifacts
+            robot.turn(7, turnPower, wait1);
+            robot.drive(49, drivePower, wait1);
+            robot.turn(101, turnPower, wait1);
+            //intake on
+            //intake the artifacts, drive slower while intaking
+            robot.drive(-33, 0.4, wait1);
+            robot.drive(33, drivePower, wait1);
+            //move back to launch position
+            robot.turn(-101, turnPower, wait1);
+            robot.drive(-49, drivePower, wait1);
+            robot.turn(-7, turnPower, wait1);
+            //shoot
+            sleep(1000);
+            //move off launch line
+            robot.drive(20, drivePower, wait1);
+            //end
+            sleep(500);
+
+
+        }
+    }
+}
