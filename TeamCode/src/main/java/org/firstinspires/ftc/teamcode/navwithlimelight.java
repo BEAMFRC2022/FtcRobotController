@@ -4,182 +4,128 @@ import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.CRServo;
+import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
-import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.Range;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 
 @TeleOp(name = "Nav With Limelight", group = "TeleOp")
 public class navwithlimelight extends LinearOpMode {
 
-    double speed_fast = 0.8;
-    double speed_slow = 0.5;
-    double intake_power = 1.0;
-    
-    double SAFE_DRIVE_SPEED   = speed_fast;
-    double SAFE_STRAFE_SPEED  = speed_fast;
-    double SAFE_YAW_SPEED     = speed_fast;
-    double HEADING_HOLD_TIME  = 10.0;
+    // Motor instances for 4 HD Hex motors (Mecanum drive)
+    private DcMotor frontleftmotor;
+    private DcMotor frontrightmotor;
+    private DcMotor backleftmotor;
+    private DcMotor backrightmotor;
 
-    ElapsedTime stopTime = new ElapsedTime();
-    boolean autoHeading = false;
-
-    SimplifiedOdometryRobot robot = new SimplifiedOdometryRobot(this);
-
-    // Shooter hardware and variables
-    private CRServo shooterright;
-    private CRServo shooterleft;
-    private double shooterPower = 0.5;
-    private boolean wasDpadUp = false;
-    private boolean wasDpadDown = false;
-
-    // Limelight hardware
+    // Limelight camera instance
     private Limelight3A limelight;
 
     @Override
     public void runOpMode() {
-        // Initialize robot hardware
-        robot.initialize(true);
+        // Initialize motor hardware using the exact names provided:
+        // Slot 0 = frontrightmotor
+        // Slot 1 = backrightmotor
+        // Slot 2 = backleftmotor
+        // Slot 3 = frontleftmotor
+        frontrightmotor = hardwareMap.get(DcMotor.class, "frontrightmotor");
+        backrightmotor  = hardwareMap.get(DcMotor.class, "backrightmotor");
+        backleftmotor   = hardwareMap.get(DcMotor.class, "backleftmotor");
+        frontleftmotor  = hardwareMap.get(DcMotor.class, "frontleftmotor");
 
-        // Initialize shooter servos
-        try {
-            shooterright = hardwareMap.get(CRServo.class, "shooterrightAsCRServo");
-            shooterleft = hardwareMap.get(CRServo.class, "shooterleftAsCRServo");
-        } catch (Exception e) {
-            shooterright = hardwareMap.get(CRServo.class, "shooterright");
-            shooterleft = hardwareMap.get(CRServo.class, "shooterleft");
-        }
-        shooterright.setDirection(CRServo.Direction.REVERSE);
+        // Set motor directions for Mecanum drive
+        // Adjust FORWARD/REVERSE if any wheel spins the wrong way
+        frontleftmotor.setDirection(DcMotor.Direction.FORWARD);
+        backleftmotor.setDirection(DcMotor.Direction.FORWARD);
+        frontrightmotor.setDirection(DcMotor.Direction.REVERSE);
+        backrightmotor.setDirection(DcMotor.Direction.REVERSE);
 
-        // Initialize Limelight
+        // Set zero power behavior to BRAKE for crisp response
+        frontleftmotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        frontrightmotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        backleftmotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        backrightmotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        // Initialize Limelight camera
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
-        limelight.pipelineSwitch(0);
+        limelight.pipelineSwitch(0); // 0 = AprilTags / Default pipeline
         limelight.start();
 
-        // Wait for driver to press start
-        while (opModeInInit()) {
-            telemetry.addData(">", "Touch Play to drive with Limelight");
-            robot.readSensors();
-            telemetry.update();
-        }
+        telemetry.addData(">", "Limelight Navigation Ready. Press Start.");
+        telemetry.update();
 
         waitForStart();
 
         while (opModeIsActive()) {
-            robot.readSensors();
+            // 1. Driver Joystick Inputs
+            double axial   = -gamepad1.left_stick_y;  // Forward / Backward
+            double lateral =  gamepad1.left_stick_x;  // Left / Right Strafe
+            double yaw     =  gamepad1.right_stick_x; // Rotation
 
-            // Allow driver to reset odometry/gyro
-            if (gamepad1.options && gamepad1.share) {
-                robot.resetOdometry();
-            }
-
-            // DRIVING SECTION ----------------------------------------------------------------------
-            double driveVal  = -gamepad1.left_stick_y * SAFE_DRIVE_SPEED;
-            double strafeVal = -gamepad1.left_stick_x * SAFE_STRAFE_SPEED;
-            double yawVal    = -gamepad1.right_stick_x * SAFE_YAW_SPEED;
-
-            // Dpad manual override
-            if (gamepad1.dpad_left) {
-                strafeVal = SAFE_DRIVE_SPEED / 2.0;
-            } else if (gamepad1.dpad_right) {
-                strafeVal = -SAFE_DRIVE_SPEED / 2.0;
-            } else if (gamepad1.dpad_up) {
-                driveVal = SAFE_DRIVE_SPEED / 2.0;
-            } else if (gamepad1.dpad_down) {
-                driveVal = -SAFE_STRAFE_SPEED / 2.0;
-            }
-
-            // LIMELIGHT AUTO-AIM ASSIST (Hold Gamepad 1 B)
+            // 2. Limelight Vision Navigation & Auto-Aim Assist
             LLResult result = limelight.getLatestResult();
-            if (gamepad1.b && result != null && result.isValid()) {
-                double tx = result.getTx(); // Horizontal angle error
-                double Kp = 0.03; // Proportional turning gain
-                yawVal = tx * Kp;
-                autoHeading = false;
-                telemetry.addData("Auto-Aim", "Locked! TX: %.2f", tx);
-            } else {
-                // Heading hold logic
-                if (Math.abs(yawVal) > 0.05) {
-                    autoHeading = false;
-                } else {
-                    if (!autoHeading && Math.abs(robot.getTurnRate()) < 2.0) {
-                        robot.yawController.reset(robot.getHeading());
-                        autoHeading = true;
-                    }
-                }
+            boolean autoAiming = gamepad1.b; // Hold Gamepad 1 B to auto-aim at target
+            boolean autoApproach = gamepad1.a; // Hold Gamepad 1 A to auto-approach target
 
-                if (autoHeading) {
-                    yawVal = robot.yawController.getOutput(robot.getHeading());
-                }
-            }
-
-            // Speed modifiers (A/Y buttons on Gamepad 1)
-            if (gamepad1.y) {
-                SAFE_DRIVE_SPEED = speed_slow;
-                SAFE_STRAFE_SPEED = speed_slow;
-                SAFE_YAW_SPEED = speed_slow;
-            } else if (gamepad1.a) {
-                SAFE_DRIVE_SPEED = speed_fast;
-                SAFE_STRAFE_SPEED = speed_fast;
-                SAFE_YAW_SPEED = speed_fast;
-            }
-
-            // Drive robot
-            robot.moveRobot(driveVal, strafeVal, yawVal);
-
-            // Heading hold timer
-            if ((driveVal == 0) && (strafeVal == 0) && (yawVal == 0)) {
-                if (stopTime.time() > HEADING_HOLD_TIME) {
-                    robot.yawController.reset(robot.getHeading());
-                }
-            } else {
-                stopTime.reset();
-            }
-
-            // OPERATOR SECTION --------------------------------------------------------------------
-            
-            // Intake control (Gamepad 2 Bumpers)
-            if (gamepad2.right_bumper) {
-                robot.intake.setPower(intake_power);
-            } else if (gamepad2.left_bumper) {
-                robot.intake.setPower(-intake_power);
-            } else {
-                robot.intake.setPower(0);
-            }
-
-            // Shooter power adjustment (Gamepad 2 D-pad Up/Down)
-            if (gamepad2.dpad_up && !wasDpadUp) {
-                shooterPower = Math.min(1.0, shooterPower + 0.1);
-            } else if (gamepad2.dpad_down && !wasDpadDown) {
-                shooterPower = Math.max(0.0, shooterPower - 0.1);
-            }
-            wasDpadUp = gamepad2.dpad_up;
-            wasDpadDown = gamepad2.dpad_down;
-
-            // Shoot (Gamepad 2 Y button)
-            if (gamepad2.y) {
-                shooterleft.setPower(shooterPower);
-                shooterright.setPower(shooterPower);
-            } else {
-                shooterleft.setPower(0);
-                shooterright.setPower(0);
-            }
-
-            // Telemetry
-            telemetry.addData("Shooter Power", "%.2f", shooterPower);
             if (result != null && result.isValid()) {
-                telemetry.addData("Limelight TX", "%.2f", result.getTx());
-                telemetry.addData("Limelight TY", "%.2f", result.getTy());
+                double tx = result.getTx(); // Horizontal angle error (-29.8 to 29.8 deg)
+                double ty = result.getTy(); // Vertical angle error
                 Pose3D botpose = result.getBotpose();
+
+                if (autoAiming) {
+                    // Proportional control to center target horizontally
+                    double Kp_turn = 0.03;
+                    yaw = tx * Kp_turn;
+                    telemetry.addData("Mode", "Auto-Aiming (Holding B)");
+                }
+
+                if (autoApproach) {
+                    // Proportional control to drive towards target based on vertical offset (ty)
+                    // (Adjust target Ty offset if you want to stop at a specific distance)
+                    double targetTy = 0.0; 
+                    double Kp_drive = 0.02;
+                    axial = (ty - targetTy) * Kp_drive;
+                    
+                    double Kp_turn = 0.03;
+                    yaw = tx * Kp_turn;
+                    telemetry.addData("Mode", "Auto-Approaching (Holding A)");
+                }
+
+                // Display Limelight Telemetry
+                telemetry.addData("Limelight", "Target Valid");
+                telemetry.addData("TX (Heading Error)", "%.2f deg", tx);
+                telemetry.addData("TY (Distance Error)", "%.2f deg", ty);
                 if (botpose != null) {
-                    telemetry.addData("Botpose X, Y", "%.2f, %.2f", botpose.getPosition().x, botpose.getPosition().y);
+                    telemetry.addData("Botpose (X, Y)", "%.2f, %.2f", botpose.getPosition().x, botpose.getPosition().y);
                 }
             } else {
-                telemetry.addData("Limelight", "No Target");
+                telemetry.addData("Limelight", "No Target Visible");
             }
+
+            // 3. Calculate Mecanum Wheel Powers
+            // Denominator is the largest motor power (absolute value) or 1.0
+            // This ensures all powers maintain the same ratio, but none exceed 1.0
+            double denominator = Math.max(Math.abs(axial) + Math.abs(lateral) + Math.abs(yaw), 1.0);
+            
+            double frontLeftPower  = (axial + lateral + yaw) / denominator;
+            double backLeftPower   = (axial - lateral + yaw) / denominator;
+            double frontRightPower = (axial - lateral - yaw) / denominator;
+            double backRightPower  = (axial + lateral - yaw) / denominator;
+
+            // 4. Apply Power to Motors
+            frontleftmotor.setPower(frontLeftPower);
+            backleftmotor.setPower(backLeftPower);
+            frontrightmotor.setPower(frontRightPower);
+            backrightmotor.setPower(backRightPower);
+
+            // Telemetry update
+            telemetry.addData("Motors", "FL:%.2f BL:%.2f FR:%.2f BR:%.2f", 
+                    frontLeftPower, backLeftPower, frontRightPower, backRightPower);
             telemetry.update();
         }
 
+        // Stop Limelight polling when OpMode ends
         limelight.stop();
     }
 }
+// navwithlimelight.java
