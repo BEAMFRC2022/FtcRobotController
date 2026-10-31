@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.hardware.limelightvision.LLStatus;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -19,7 +20,7 @@ public class navwithlimelight extends LinearOpMode {
     private DcMotor backrightmotor;
 
     // Odometry / Robot helper
-    private SimplifiedOdometryRobot robot = new SimplifiedOdometryRobot(this);
+    private final SimplifiedOdometryRobot robot = new SimplifiedOdometryRobot(this);
 
     // Limelight camera instance
     private Limelight3A limelight;
@@ -51,6 +52,9 @@ public class navwithlimelight extends LinearOpMode {
         backleftmotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         backrightmotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
+        // Set telemetry transmission interval for smooth updates
+        telemetry.setMsTransmissionInterval(11);
+
         // Initialization phase loop: Allows retrying until the Limelight finishes booting up
         while (opModeInInit()) {
             if (limelight == null) {
@@ -63,7 +67,13 @@ public class navwithlimelight extends LinearOpMode {
                     telemetry.addData("Limelight Status", "Waiting for Limelight (Check DS Config)...");
                 }
             } else {
-                telemetry.addData("Limelight Status", "Connected & Ready");
+                LLStatus status = limelight.getStatus();
+                if (status != null) {
+                    telemetry.addData("Limelight", "FPS: %d, CPU: %.1f%%, Temp: %.1f°C", 
+                            (int)status.getFps(), status.getCpu(), status.getTemp());
+                } else {
+                    telemetry.addData("Limelight Status", "Connected & Ready");
+                }
             }
 
             telemetry.addData(">", "Touch Play to drive with Limelight");
@@ -83,12 +93,14 @@ public class navwithlimelight extends LinearOpMode {
 
             // 2. Limelight Vision Navigation & Auto-Aim Assist
             LLResult result = null;
-            boolean autoAiming = gamepad1.b;   // Hold Gamepad 1 B to auto-aim at target
+            boolean autoAiming = gamepad1.b;   // Hold Gamepad 1 B to auto-aim at target (Tags 38-41)
             boolean autoApproach = gamepad1.a; // Hold Gamepad 1 A to auto-approach target
 
             if (limelight != null) {
                 result = limelight.getLatestResult();
             }
+
+            String currentMode = "Manual Driving";
 
             if (result != null && result.isValid()) {
                 double tx = result.getTx(); // Horizontal angle error (-29.8 to 29.8 deg)
@@ -99,10 +111,8 @@ public class navwithlimelight extends LinearOpMode {
                     // Proportional control to center target horizontally
                     double Kp_turn = 0.03;
                     yaw = tx * Kp_turn;
-                    telemetry.addData("Mode", "Auto-Aiming (Holding B)");
-                }
-
-                if (autoApproach) {
+                    currentMode = "Auto-Aiming (Holding B)";
+                } else if (autoApproach) {
                     // Proportional control to drive towards target based on vertical offset (ty)
                     double targetTy = 0.0; 
                     double Kp_drive = 0.02;
@@ -110,23 +120,35 @@ public class navwithlimelight extends LinearOpMode {
                     
                     double Kp_turn = 0.03;
                     yaw = tx * Kp_turn;
-                    telemetry.addData("Mode", "Auto-Approaching (Holding A)");
+                    currentMode = "Auto-Approaching (Holding A)";
                 }
 
-                // Display Limelight Telemetry
-                telemetry.addData("Limelight", "Target Valid");
+                // Continuous Vision Telemetry
+                telemetry.addData("Vision Target", "VALID (AprilTag Found)");
                 telemetry.addData("TX (Heading Error)", "%.2f deg", tx);
                 telemetry.addData("TY (Distance Error)", "%.2f deg", ty);
                 if (botpose != null) {
-                    telemetry.addData("Botpose (X, Y)", "%.2f, %.2f", botpose.getPosition().x, botpose.getPosition().y);
+                    telemetry.addData("Robot Field Position", "X: %.2f, Y: %.2f", botpose.getPosition().x, botpose.getPosition().y);
                 }
             } else {
                 if (limelight == null) {
-                    telemetry.addData("Limelight", "Not Found in Hardware Map");
+                    telemetry.addData("Vision Status", "ERROR: Limelight not found in Hardware Map");
                 } else {
-                    telemetry.addData("Limelight", "No Target Visible");
+                    telemetry.addData("Vision Status", "Searching for Target (Tags 38-41)...");
                 }
             }
+
+            // Continuous Camera Status Telemetry
+            if (limelight != null) {
+                LLStatus status = limelight.getStatus();
+                if (status != null) {
+                    telemetry.addData("Camera Status", "FPS: %d | CPU: %.1f%% | Temp: %.1f°C | Pipeline: %d (%s)",
+                            (int)status.getFps(), status.getCpu(), status.getTemp(), 
+                            status.getPipelineIndex(), status.getPipelineType());
+                }
+            }
+
+            telemetry.addData("Drive Mode", currentMode);
 
             // 3. Calculate Mecanum Wheel Powers
             double denominator = Math.max(Math.abs(axial) + Math.abs(lateral) + Math.abs(yaw), 1.0);
@@ -142,8 +164,8 @@ public class navwithlimelight extends LinearOpMode {
             frontrightmotor.setPower(frontRightPower);
             backrightmotor.setPower(backRightPower);
 
-            // Telemetry update
-            telemetry.addData("Motors", "FL:%.2f BL:%.2f FR:%.2f BR:%.2f", 
+            // Motor power telemetry
+            telemetry.addData("Motors (FL, BL, FR, BR)", "%.2f, %.2f, %.2f, %.2f", 
                     frontLeftPower, backLeftPower, frontRightPower, backRightPower);
             telemetry.update();
         }
