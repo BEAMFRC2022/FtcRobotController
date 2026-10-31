@@ -8,7 +8,7 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.CRServo;
+import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 /*
@@ -37,8 +37,8 @@ public class BioBuzzTeleop extends LinearOpMode
     SimplifiedOdometryRobot robot = new SimplifiedOdometryRobot(this);
 
     // Shooter hardware and variables
-    private CRServo shooterright;
-    private CRServo shooterleft;
+    private DcMotor shooterright;
+    private DcMotor shooterleft;
     private double shooterPower = 0.5;
     private boolean wasDpadUp = false;
     private boolean wasDpadDown = false;
@@ -48,15 +48,18 @@ public class BioBuzzTeleop extends LinearOpMode
         // Initialize the drive hardware & Turn on telemetry
         robot.initialize(true);
 
-        // Initialize shooter servos (supporting both naming conventions)
+        // Initialize shooter motors
         try {
-            shooterright = hardwareMap.get(CRServo.class, "shooterrightAsCRServo");
-            shooterleft = hardwareMap.get(CRServo.class, "shooterleftAsCRServo");
+            shooterright = hardwareMap.get(DcMotor.class, "shooterright");
+            shooterleft = hardwareMap.get(DcMotor.class, "shooterleft");
         } catch (Exception e) {
-            shooterright = hardwareMap.get(CRServo.class, "shooterright");
-            shooterleft = hardwareMap.get(CRServo.class, "shooterleft");
+            shooterright = hardwareMap.get(DcMotor.class, "shooterrightAsDcMotor");
+            shooterleft = hardwareMap.get(DcMotor.class, "shooterleftAsDcMotor");
         }
-        shooterright.setDirection(CRServo.Direction.REVERSE);
+        shooterright.setDirection(DcMotor.Direction.REVERSE);
+        shooterleft.setDirection(DcMotor.Direction.FORWARD);
+        shooterright.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        shooterleft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         // Wait for driver to press start
         while(opModeInInit()) {
@@ -138,7 +141,7 @@ public class BioBuzzTeleop extends LinearOpMode
             
             // OPERATOR SECTION --------------------------------------------------------------------
             
-            // Run Intake (Gamepad 2 Bumpers)
+            // Run Intake
             if(gamepad2.right_bumper){
                 robot.intake.setPower(intake_power);
             }
