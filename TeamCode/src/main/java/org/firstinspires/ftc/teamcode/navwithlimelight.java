@@ -45,26 +45,36 @@ public class navwithlimelight extends LinearOpMode {
         backleftmotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         backrightmotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        // Initialize Limelight camera
-        limelight = hardwareMap.get(Limelight3A.class, "limelight");
-        limelight.pipelineSwitch(0);
-        limelight.start();
+        // Initialize Limelight camera with safe try-catch handling
+        try {
+            limelight = hardwareMap.get(Limelight3A.class, "limelight");
+            limelight.pipelineSwitch(0);
+            limelight.start();
+            telemetry.addData("Limelight Status", "Initialized Successfully");
+        } catch (Exception e) {
+            limelight = null;
+            telemetry.addData("Limelight Status", "NOT FOUND! Check Driver Station Configuration.");
+        }
 
-        telemetry.addData(">", "Limelight Navigation Ready. Press Start.");
+        telemetry.addData(">", "Robot Ready. Press Start.");
         telemetry.update();
 
         waitForStart();
 
         while (opModeIsActive()) {
-            // 1. Driver Joystick Inputs (Original standard mapping)
+            // 1. Driver Joystick Inputs
             double axial   = -gamepad1.left_stick_y;  // Forward / Backward
             double lateral =  gamepad1.left_stick_x;  // Left / Right Strafe
             double yaw     =  gamepad1.right_stick_x; // Rotation
 
             // 2. Limelight Vision Navigation & Auto-Aim Assist
-            LLResult result = limelight.getLatestResult();
+            LLResult result = null;
             boolean autoAiming = gamepad1.b;   // Hold Gamepad 1 B to auto-aim at target
             boolean autoApproach = gamepad1.a; // Hold Gamepad 1 A to auto-approach target
+
+            if (limelight != null) {
+                result = limelight.getLatestResult();
+            }
 
             if (result != null && result.isValid()) {
                 double tx = result.getTx(); // Horizontal angle error (-29.8 to 29.8 deg)
@@ -97,7 +107,11 @@ public class navwithlimelight extends LinearOpMode {
                     telemetry.addData("Botpose (X, Y)", "%.2f, %.2f", botpose.getPosition().x, botpose.getPosition().y);
                 }
             } else {
-                telemetry.addData("Limelight", "No Target Visible");
+                if (limelight == null) {
+                    telemetry.addData("Limelight", "Not Configured in Hardware Map");
+                } else {
+                    telemetry.addData("Limelight", "No Target Visible");
+                }
             }
 
             // 3. Calculate Mecanum Wheel Powers
@@ -121,6 +135,8 @@ public class navwithlimelight extends LinearOpMode {
         }
 
         // Stop Limelight polling when OpMode ends
-        limelight.stop();
+        if (limelight != null) {
+            limelight.stop();
+        }
     }
 }
