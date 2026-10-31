@@ -18,6 +18,9 @@ public class navwithlimelight extends LinearOpMode {
     private DcMotor backleftmotor;
     private DcMotor backrightmotor;
 
+    // Odometry / Robot helper
+    private SimplifiedOdometryRobot robot = new SimplifiedOdometryRobot(this);
+
     // Limelight camera instance
     private Limelight3A limelight;
 
@@ -33,6 +36,9 @@ public class navwithlimelight extends LinearOpMode {
         backleftmotor   = hardwareMap.get(DcMotor.class, "backleftmotor");
         frontleftmotor  = hardwareMap.get(DcMotor.class, "frontleftmotor");
 
+        // Initialize Odometry Robot helper
+        robot.initialize(true);
+
         // Set motor directions for Mecanum drive
         frontleftmotor.setDirection(DcMotor.Direction.FORWARD);
         backleftmotor.setDirection(DcMotor.Direction.FORWARD);
@@ -45,23 +51,31 @@ public class navwithlimelight extends LinearOpMode {
         backleftmotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         backrightmotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        // Initialize Limelight camera with safe try-catch handling
-        try {
-            limelight = hardwareMap.get(Limelight3A.class, "limelight");
-            limelight.pipelineSwitch(0);
-            limelight.start();
-            telemetry.addData("Limelight Status", "Initialized Successfully");
-        } catch (Exception e) {
-            limelight = null;
-            telemetry.addData("Limelight Status", "NOT FOUND! Check Driver Station Configuration.");
-        }
+        // Initialization phase loop: Allows retrying until the Limelight finishes booting up
+        while (opModeInInit()) {
+            if (limelight == null) {
+                try {
+                    limelight = hardwareMap.get(Limelight3A.class, "limelight");
+                    limelight.pipelineSwitch(0);
+                    limelight.start();
+                    telemetry.addData("Limelight Status", "Initialized Successfully!");
+                } catch (Exception e) {
+                    telemetry.addData("Limelight Status", "Waiting for Limelight (Check DS Config)...");
+                }
+            } else {
+                telemetry.addData("Limelight Status", "Connected & Ready");
+            }
 
-        telemetry.addData(">", "Robot Ready. Press Start.");
-        telemetry.update();
+            telemetry.addData(">", "Touch Play to drive with Limelight");
+            robot.readSensors();
+            telemetry.update();
+        }
 
         waitForStart();
 
         while (opModeIsActive()) {
+            robot.readSensors();
+
             // 1. Driver Joystick Inputs
             double axial   = -gamepad1.left_stick_y;  // Forward / Backward
             double lateral =  gamepad1.left_stick_x;  // Left / Right Strafe
@@ -108,7 +122,7 @@ public class navwithlimelight extends LinearOpMode {
                 }
             } else {
                 if (limelight == null) {
-                    telemetry.addData("Limelight", "Not Configured in Hardware Map");
+                    telemetry.addData("Limelight", "Not Found in Hardware Map");
                 } else {
                     telemetry.addData("Limelight", "No Target Visible");
                 }
