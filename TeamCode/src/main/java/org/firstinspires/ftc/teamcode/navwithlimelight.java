@@ -21,16 +21,6 @@ public class navwithlimelight extends LinearOpMode {
     // Limelight camera instance
     private Limelight3A limelight;
 
-    // --- CONFIGURATION TUNING VARIABLES ---
-    // If your robot moves in the wrong direction, flip these from 1.0 to -1.0 (or vice versa)
-    double DRIVE_INVERT  = -1.0; // Forward / Backward
-    double STRAFE_INVERT =  1.0; // Left / Right Strafe
-    double YAW_INVERT    =  1.0; // Rotation / Turning
-
-    // Change this if your AprilTag pipeline is on index 1, 2, etc. in the Limelight web UI
-    int PIPELINE_INDEX   =  0; 
-    // --------------------------------------
-
     @Override
     public void runOpMode() {
         // Initialize motor hardware using the exact names provided:
@@ -44,7 +34,6 @@ public class navwithlimelight extends LinearOpMode {
         frontleftmotor  = hardwareMap.get(DcMotor.class, "frontleftmotor");
 
         // Set motor directions for Mecanum drive
-        // Adjust FORWARD/REVERSE if any wheel spins the wrong way
         frontleftmotor.setDirection(DcMotor.Direction.FORWARD);
         backleftmotor.setDirection(DcMotor.Direction.FORWARD);
         frontrightmotor.setDirection(DcMotor.Direction.REVERSE);
@@ -58,7 +47,7 @@ public class navwithlimelight extends LinearOpMode {
 
         // Initialize Limelight camera
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
-        limelight.pipelineSwitch(PIPELINE_INDEX);
+        limelight.pipelineSwitch(0);
         limelight.start();
 
         telemetry.addData(">", "Limelight Navigation Ready. Press Start.");
@@ -67,10 +56,10 @@ public class navwithlimelight extends LinearOpMode {
         waitForStart();
 
         while (opModeIsActive()) {
-            // 1. Driver Joystick Inputs with configurable inversion multipliers
-            double axial   = gamepad1.left_stick_y * DRIVE_INVERT;   // Forward / Backward
-            double lateral = gamepad1.left_stick_x * STRAFE_INVERT;  // Left / Right Strafe
-            double yaw     = gamepad1.right_stick_x * YAW_INVERT;    // Rotation
+            // 1. Driver Joystick Inputs (Original standard mapping)
+            double axial   = -gamepad1.left_stick_y;  // Forward / Backward
+            double lateral =  gamepad1.left_stick_x;  // Left / Right Strafe
+            double yaw     =  gamepad1.right_stick_x; // Rotation
 
             // 2. Limelight Vision Navigation & Auto-Aim Assist
             LLResult result = limelight.getLatestResult();
@@ -101,14 +90,14 @@ public class navwithlimelight extends LinearOpMode {
                 }
 
                 // Display Limelight Telemetry
-                telemetry.addData("Limelight", "Target Valid (Pipeline %d)", PIPELINE_INDEX);
+                telemetry.addData("Limelight", "Target Valid");
                 telemetry.addData("TX (Heading Error)", "%.2f deg", tx);
                 telemetry.addData("TY (Distance Error)", "%.2f deg", ty);
                 if (botpose != null) {
                     telemetry.addData("Botpose (X, Y)", "%.2f, %.2f", botpose.getPosition().x, botpose.getPosition().y);
                 }
             } else {
-                telemetry.addData("Limelight", "No Target Visible (Check Pipeline %d & lighting)", PIPELINE_INDEX);
+                telemetry.addData("Limelight", "No Target Visible");
             }
 
             // 3. Calculate Mecanum Wheel Powers
