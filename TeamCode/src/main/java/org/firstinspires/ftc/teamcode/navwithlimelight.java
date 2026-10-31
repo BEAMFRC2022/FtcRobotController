@@ -6,7 +6,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
-import com.qualcomm.robotcore.util.Range;
+
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 
 @TeleOp(name = "Nav With Limelight", group = "TeleOp")
@@ -20,6 +20,16 @@ public class navwithlimelight extends LinearOpMode {
 
     // Limelight camera instance
     private Limelight3A limelight;
+
+    // --- CONFIGURATION TUNING VARIABLES ---
+    // If your robot moves in the wrong direction, flip these from 1.0 to -1.0 (or vice versa)
+    double DRIVE_INVERT  = -1.0; // Forward / Backward
+    double STRAFE_INVERT =  1.0; // Left / Right Strafe
+    double YAW_INVERT    =  1.0; // Rotation / Turning
+
+    // Change this if your AprilTag pipeline is on index 1, 2, etc. in the Limelight web UI
+    int PIPELINE_INDEX   =  0; 
+    // --------------------------------------
 
     @Override
     public void runOpMode() {
@@ -48,7 +58,7 @@ public class navwithlimelight extends LinearOpMode {
 
         // Initialize Limelight camera
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
-        limelight.pipelineSwitch(0); // 0 = AprilTags / Default pipeline
+        limelight.pipelineSwitch(PIPELINE_INDEX);
         limelight.start();
 
         telemetry.addData(">", "Limelight Navigation Ready. Press Start.");
@@ -57,14 +67,14 @@ public class navwithlimelight extends LinearOpMode {
         waitForStart();
 
         while (opModeIsActive()) {
-            // 1. Driver Joystick Inputs
-            double axial   = -gamepad1.left_stick_y;  // Forward / Backward
-            double lateral =  gamepad1.left_stick_x;  // Left / Right Strafe
-            double yaw     =  gamepad1.right_stick_x; // Rotation
+            // 1. Driver Joystick Inputs with configurable inversion multipliers
+            double axial   = gamepad1.left_stick_y * DRIVE_INVERT;   // Forward / Backward
+            double lateral = gamepad1.left_stick_x * STRAFE_INVERT;  // Left / Right Strafe
+            double yaw     = gamepad1.right_stick_x * YAW_INVERT;    // Rotation
 
             // 2. Limelight Vision Navigation & Auto-Aim Assist
             LLResult result = limelight.getLatestResult();
-            boolean autoAiming = gamepad1.b; // Hold Gamepad 1 B to auto-aim at target
+            boolean autoAiming = gamepad1.b;   // Hold Gamepad 1 B to auto-aim at target
             boolean autoApproach = gamepad1.a; // Hold Gamepad 1 A to auto-approach target
 
             if (result != null && result.isValid()) {
@@ -81,7 +91,6 @@ public class navwithlimelight extends LinearOpMode {
 
                 if (autoApproach) {
                     // Proportional control to drive towards target based on vertical offset (ty)
-                    // (Adjust target Ty offset if you want to stop at a specific distance)
                     double targetTy = 0.0; 
                     double Kp_drive = 0.02;
                     axial = (ty - targetTy) * Kp_drive;
@@ -92,19 +101,17 @@ public class navwithlimelight extends LinearOpMode {
                 }
 
                 // Display Limelight Telemetry
-                telemetry.addData("Limelight", "Target Valid");
+                telemetry.addData("Limelight", "Target Valid (Pipeline %d)", PIPELINE_INDEX);
                 telemetry.addData("TX (Heading Error)", "%.2f deg", tx);
                 telemetry.addData("TY (Distance Error)", "%.2f deg", ty);
                 if (botpose != null) {
                     telemetry.addData("Botpose (X, Y)", "%.2f, %.2f", botpose.getPosition().x, botpose.getPosition().y);
                 }
             } else {
-                telemetry.addData("Limelight", "No Target Visible");
+                telemetry.addData("Limelight", "No Target Visible (Check Pipeline %d & lighting)", PIPELINE_INDEX);
             }
 
             // 3. Calculate Mecanum Wheel Powers
-            // Denominator is the largest motor power (absolute value) or 1.0
-            // This ensures all powers maintain the same ratio, but none exceed 1.0
             double denominator = Math.max(Math.abs(axial) + Math.abs(lateral) + Math.abs(yaw), 1.0);
             
             double frontLeftPower  = (axial + lateral + yaw) / denominator;
@@ -128,4 +135,3 @@ public class navwithlimelight extends LinearOpMode {
         limelight.stop();
     }
 }
-// navwithlimelight.java
