@@ -6,8 +6,6 @@ import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
-
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 
 @TeleOp(name = "Nav With Limelight", group = "TeleOp")
@@ -108,9 +106,9 @@ public class navwithlimelight extends LinearOpMode {
                 Pose3D botpose = result.getBotpose();
 
                 if (autoAiming) {
-                    // Proportional control to center target horizontally
+                    // Proportional control to center target horizontally (inverted sign so it turns toward target)
                     double Kp_turn = 0.03;
-                    yaw = tx * Kp_turn;
+                    yaw = -tx * Kp_turn;
                     currentMode = "Auto-Aiming (Holding B)";
                 } else if (autoApproach) {
                     // Proportional control to drive towards target based on vertical offset (ty)
@@ -119,7 +117,7 @@ public class navwithlimelight extends LinearOpMode {
                     axial = (ty - targetTy) * Kp_drive;
                     
                     double Kp_turn = 0.03;
-                    yaw = tx * Kp_turn;
+                    yaw = -tx * Kp_turn;
                     currentMode = "Auto-Approaching (Holding A)";
                 }
 
