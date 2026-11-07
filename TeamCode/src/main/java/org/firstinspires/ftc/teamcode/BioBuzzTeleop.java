@@ -11,27 +11,21 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-/*
- * This OpMode illustrates a teleop OpMode for an Omni robot.
- * An external "Robot" class is used to manage all motor/sensor interfaces, and to assist driving functions.
- * The IMU gyro is used to stabilize the heading when the operator is not requesting a turn.
- */
-
 @TeleOp(name="BioBuzz Teleop", group = "Mr. Phil")
 public class BioBuzzTeleop extends LinearOpMode
 {
     double speed_fast = 0.8;
     double speed_slow = 0.5;
-    double intake_power = 1;
+    double intake_power = 1.0;
     
-    double SAFE_DRIVE_SPEED   = speed_fast ; // Adjust this to your robot and your driver.  Slower usually means more accuracy.  Max value = 1.0
-    double SAFE_STRAFE_SPEED  = speed_fast ; // Adjust this to your robot and your driver.  Slower usually means more accuracy.  Max value = 1.0
-    double SAFE_YAW_SPEED     = speed_fast ; // Adjust this to your robot and your driver.  Slower usually means more accuracy.  Max value = 1.0  YAW means TURNING
-    double HEADING_HOLD_TIME  = 10.0 ; // How long to hold heading once all driver input stops. (This Avoids effects of Gyro Drift)
+    double SAFE_DRIVE_SPEED   = speed_fast;
+    double SAFE_STRAFE_SPEED  = speed_fast;
+    double SAFE_YAW_SPEED     = speed_fast;
+    double HEADING_HOLD_TIME  = 10.0;
 
     // local parameters
-    ElapsedTime stopTime   = new ElapsedTime();  // Use for timeouts.
-    boolean autoHeading    = false; // used to indicate when heading should be locked.
+    ElapsedTime stopTime = new ElapsedTime();
+    boolean autoHeading  = false;
 
     // get an instance of the "Robot" class.
     SimplifiedOdometryRobot robot = new SimplifiedOdometryRobot(this);
@@ -48,27 +42,50 @@ public class BioBuzzTeleop extends LinearOpMode
         // Initialize the drive hardware & Turn on telemetry
         robot.initialize(true);
 
-        // Initialize shooter motors
+        // Safe initialization of shooter motors (prevents NullPointerException crashes)
         try {
             shooterright = hardwareMap.get(DcMotor.class, "shooterright");
+        } catch (Exception e) {
+            try {
+                shooterright = hardwareMap.get(DcMotor.class, "shooterrightAsDcMotor");
+            } catch (Exception ex) {
+                shooterright = null;
+            }
+        }
+
+        try {
             shooterleft = hardwareMap.get(DcMotor.class, "shooterleft");
         } catch (Exception e) {
-            shooterright = hardwareMap.get(DcMotor.class, "shooterrightAsDcMotor");
-            shooterleft = hardwareMap.get(DcMotor.class, "shooterleftAsDcMotor");
+            try {
+                shooterleft = hardwareMap.get(DcMotor.class, "shooterleftAsDcMotor");
+            } catch (Exception ex) {
+                shooterleft = null;
+            }
         }
-        shooterright.setDirection(DcMotor.Direction.REVERSE);
-        shooterleft.setDirection(DcMotor.Direction.FORWARD);
-        shooterright.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        shooterleft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        if (shooterright != null) {
+            shooterright.setDirection(DcMotor.Direction.REVERSE);
+            shooterright.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        }
+
+        if (shooterleft != null) {
+            shooterleft.setDirection(DcMotor.Direction.FORWARD);
+            shooterleft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        }
 
         // Wait for driver to press start
         while(opModeInInit()) {
             telemetry.addData(">", "Touch Play to drive");
+            telemetry.addData("Shooter Right Motor", shooterright != null ? "Connected" : "NOT FOUND (check config)");
+            telemetry.addData("Shooter Left Motor", shooterleft != null ? "Connected" : "NOT FOUND (check config)");
+            telemetry.addData("Intake Motor", robot.intake != null ? "Connected" : "NOT FOUND (check config)");
 
             // Read and display sensor data
             robot.readSensors();
             telemetry.update();
-        };
+        }
+
+        waitForStart();
 
         while (opModeIsActive())
         {
@@ -80,13 +97,11 @@ public class BioBuzzTeleop extends LinearOpMode
             }
 
             // DRIVING SECTION ----------------------------------------------------------------------
-            
-            // read joystick values and scale according to limits set at top of this file
-            double drive  = -gamepad1.left_stick_y * SAFE_DRIVE_SPEED;      //  Fwd/back on left stick
-            double strafe = -gamepad1.left_stick_x * SAFE_STRAFE_SPEED;     //  Left/Right on left stick
-            double yaw    = -gamepad1.right_stick_x * SAFE_YAW_SPEED;       //  Rotate on right stick
+            double drive  = -gamepad1.left_stick_y * SAFE_DRIVE_SPEED;
+            double strafe = -gamepad1.left_stick_x * SAFE_STRAFE_SPEED;
+            double yaw    = -gamepad1.right_stick_x * SAFE_YAW_SPEED;
 
-            //  OR... For special conditions, Use the DPAD to make pure orthoginal motions
+            // Orthogonal DPAD movements
             if (gamepad1.dpad_left) {
                 strafe = SAFE_DRIVE_SPEED / 2.0;
             } else if (gamepad1.dpad_right) {
@@ -97,43 +112,38 @@ public class BioBuzzTeleop extends LinearOpMode
                 drive = -SAFE_STRAFE_SPEED / 2.0;
             }
 
-            // This is where we heep the robot heading locked so it doesn't turn while driving or strafing in a straight line.
-            // Is the driver turning the robot, or should it hold its heading?
+            // Heading Hold Logic
             if (Math.abs(yaw) > 0.05) {
-                // driver is commanding robot to turn, so turn off auto heading.
                 autoHeading = false;
             } else {
-                // If we are not already locked, wait for robot to stop rotating (<2 deg per second) and then lock-in the current heading.
                 if (!autoHeading && Math.abs(robot.getTurnRate()) < 2.0) {
-                    robot.yawController.reset(robot.getHeading());  // Lock in the current heading
+                    robot.yawController.reset(robot.getHeading());
                     autoHeading = true;
                 }
             }
 
-            // If auto heading is on, override manual yaw with the value generated by the heading controller.
             if (autoHeading) {
                 yaw = robot.yawController.getOutput(robot.getHeading());
             }
             
-            // If A button is pressed, we want to reduce the speed.  If A button is pressed again, we want to go back to full speed
+            // Speed toggles
             if(gamepad1.y) {
                 SAFE_DRIVE_SPEED = speed_slow;
                 SAFE_STRAFE_SPEED = speed_slow;
                 SAFE_YAW_SPEED = speed_slow;
-            }
-            else if(gamepad1.a) {
+            } else if(gamepad1.a) {
                 SAFE_DRIVE_SPEED = speed_fast;
                 SAFE_STRAFE_SPEED = speed_fast;
                 SAFE_YAW_SPEED = speed_fast;
             }
 
-            //  Drive the wheels based on the desired axis motions
+            // Drive the wheels
             robot.moveRobot(drive, strafe, yaw);
 
-            // If the robot has just been sitting here for a while, make heading setpoint track any gyro drift to prevent rotating.
+            // Gyro drift reset timer
             if ((drive == 0) && (strafe == 0) && (yaw == 0)) {
                 if (stopTime.time() > HEADING_HOLD_TIME) {
-                    robot.yawController.reset(robot.getHeading());  // just keep tracking the current heading
+                    robot.yawController.reset(robot.getHeading());
                 }
             } else {
                 stopTime.reset();
@@ -141,18 +151,18 @@ public class BioBuzzTeleop extends LinearOpMode
             
             // OPERATOR SECTION --------------------------------------------------------------------
             
-            // Run Intake
-            if(gamepad2.right_bumper){
-                robot.intake.setPower(intake_power);
-            }
-            else if(gamepad2.left_bumper){
-               robot.intake.setPower(-intake_power); 
-            }
-            else {
-                robot.intake.setPower(0);
+            // Safe Intake control
+            if (robot.intake != null) {
+                if (gamepad2.right_bumper) {
+                    robot.intake.setPower(intake_power);
+                } else if (gamepad2.left_bumper) {
+                    robot.intake.setPower(-intake_power);
+                } else {
+                    robot.intake.setPower(0);
+                }
             }
             
-            // Run Shooter (Gamepad 2 D-pad Up/Down for power, Y for shooting)
+            // Safe Shooter control (Gamepad 2 D-pad Up/Down for power, Y for shooting)
             if (gamepad2.dpad_up && !wasDpadUp) {
                 shooterPower = Math.min(1.0, shooterPower + 0.1);
             } else if (gamepad2.dpad_down && !wasDpadDown) {
@@ -162,11 +172,11 @@ public class BioBuzzTeleop extends LinearOpMode
             wasDpadDown = gamepad2.dpad_down;
 
             if (gamepad2.y) {
-                shooterleft.setPower(shooterPower);
-                shooterright.setPower(shooterPower);
+                if (shooterleft != null) shooterleft.setPower(shooterPower);
+                if (shooterright != null) shooterright.setPower(shooterPower);
             } else {
-                shooterleft.setPower(0);
-                shooterright.setPower(0);
+                if (shooterleft != null) shooterleft.setPower(0);
+                if (shooterright != null) shooterright.setPower(0);
             }
 
             telemetry.addData("Shooter Power", "%.2f", shooterPower);
