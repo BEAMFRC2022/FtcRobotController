@@ -7,13 +7,13 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
-
+import com.qualcomm.robotcore.util.Range;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 
 @TeleOp(name = "Nav With Limelight", group = "TeleOp")
 public class navwithlimelight extends LinearOpMode {
 
-    public static final String VERSION = "1.01";
+    public static final String VERSION = "1.02";
 
     // Motor instances for 4 HD Hex motors (Mecanum drive)
     private DcMotor frontleftmotor;
@@ -59,7 +59,6 @@ public class navwithlimelight extends LinearOpMode {
 
         // Initialization phase loop: Allows retrying until the Limelight finishes booting up
         while (opModeInInit()) {
-            telemetry.addData("Version", VERSION);
             if (limelight == null) {
                 try {
                     limelight = hardwareMap.get(Limelight3A.class, "limelight");
@@ -79,6 +78,7 @@ public class navwithlimelight extends LinearOpMode {
                 }
             }
 
+            telemetry.addData("Version", VERSION);
             telemetry.addData(">", "Touch Play to drive with Limelight");
             robot.readSensors();
             telemetry.update();
@@ -111,20 +111,18 @@ public class navwithlimelight extends LinearOpMode {
                 Pose3D botpose = result.getBotpose();
 
                 if (autoAiming) {
-                    // Proportional control to center target horizontally (inverted sign so it turns toward target)
-                    double Kp_turn = 0.03;
-                    yaw = -tx * Kp_turn;
+                    double Kp_turn = 0.02;
+                    yaw = Range.clip(-tx * Kp_turn, -0.4, 0.4); // Capped at 40% power to prevent overshoot
                     currentMode = "Auto-Aiming (Holding B)";
                 } else if (autoApproach) {
-                    // Proportional control to drive towards target based on vertical offset (ty)
-                    double targetTy = 9.6;
-                    // 11/14/2026 We callibrated the robot to be a foot from the back wall
-                    double Kp_drive = 0.02;
-                    axial = (ty - targetTy) * Kp_drive;
+                    double targetTy = 9.6; // Calibrated for 1 foot distance
+                    double Kp_drive = 0.012; // Reduced drive gain to prevent overshoot
+                    double Kp_turn  = 0.02;  // Smooth turn gain
                     
-                    double Kp_turn = 0.03;
-                    yaw = -tx * Kp_turn;
-                    currentMode = "Auto-Approaching (Holding A)";
+                    // Capped at 35% max power while Button A is held to prevent overshooting
+                    axial = Range.clip((ty - targetTy) * Kp_drive, -0.35, 0.35);
+                    yaw   = Range.clip(-tx * Kp_turn, -0.35, 0.35);
+                    currentMode = "Auto-Approaching (Holding A - Smooth)";
                 }
 
                 // Continuous Vision Telemetry

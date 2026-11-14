@@ -14,12 +14,13 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.Range;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 
 @TeleOp(name="BioBuzz Teleop", group = "Mr. Phil")
 public class BioBuzzTeleop extends LinearOpMode
 {
-    public static final String VERSION = "2.01";
+    public static final String VERSION = "2.02";
 
     double speed_fast = 0.8;
     double speed_slow = 0.5;
@@ -162,18 +163,21 @@ public class BioBuzzTeleop extends LinearOpMode
                 Pose3D botpose = result.getBotpose();
 
                 if (autoAiming) {
-                    double Kp_turn = 0.03;
-                    yaw = -tx * Kp_turn; // Turn towards target
+                    double Kp_turn = 0.02; // Smooth turning gain
+                    yaw = Range.clip(-tx * Kp_turn, -0.4, 0.4); // Capped at 40% power to prevent overshoot
                     autoHeading = false;
                     currentMode = "Auto-Aiming (Holding B)";
                 } else if (autoApproach) {
                     double targetTy = 9.6; // Calibrated for 1 foot distance from back wall
-                    double Kp_drive = 0.02;
-                    double Kp_turn = 0.03;
-                    drive = (ty - targetTy) * Kp_drive;
-                    yaw = -tx * Kp_turn;
+                    double Kp_drive = 0.012; // Reduced drive gain for precise alignment without overshooting
+                    double Kp_turn  = 0.02;  // Reduced turn gain for precise alignment
+                    
+                    // Capped at 35% max power while Button A is held to prevent overshooting
+                    drive = Range.clip((ty - targetTy) * Kp_drive, -0.35, 0.35);
+                    yaw   = Range.clip(-tx * Kp_turn, -0.35, 0.35);
+                    
                     autoHeading = false;
-                    currentMode = "Auto-Approaching (Holding A)";
+                    currentMode = "Auto-Approaching (Holding A - Smooth)";
                 }
 
                 telemetry.addData("Vision Target", "VALID (AprilTag Found)");
