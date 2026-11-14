@@ -76,6 +76,7 @@ public class BioBuzzTeleop extends LinearOpMode
         // Wait for driver to press start
         while(opModeInInit()) {
             telemetry.addData(">", "Touch Play to drive");
+            telemetry.addData("Drive Motors", robot.frontleftmotor != null ? "Connected" : "NOT FOUND (check config)");
             telemetry.addData("Shooter Right Motor", shooterright != null ? "Connected" : "NOT FOUND (check config)");
             telemetry.addData("Shooter Left Motor", shooterleft != null ? "Connected" : "NOT FOUND (check config)");
             telemetry.addData("Intake Motor", robot.intake != null ? "Connected" : "NOT FOUND (check config)");
