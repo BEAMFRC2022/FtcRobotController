@@ -15,7 +15,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 @TeleOp(name="BioBuzz Teleop", group = "Mr. Phil")
 public class BioBuzzTeleop extends LinearOpMode
 {
-    public static final String VERSION = "1.00";
+    public static final String VERSION = "1.01";
 
     double speed_fast = 0.8;
     double speed_slow = 0.5;
@@ -102,19 +102,19 @@ public class BioBuzzTeleop extends LinearOpMode
             }
 
             // DRIVING SECTION ----------------------------------------------------------------------
-            double drive  = -gamepad1.left_stick_y * SAFE_DRIVE_SPEED;
-            double strafe = -gamepad1.left_stick_x * SAFE_STRAFE_SPEED;
+            double drive  =  gamepad1.left_stick_y * SAFE_DRIVE_SPEED;
+            double strafe =  gamepad1.left_stick_x * SAFE_STRAFE_SPEED;
             double yaw    = -gamepad1.right_stick_x * SAFE_YAW_SPEED;
 
             // Orthogonal DPAD movements
             if (gamepad1.dpad_left) {
-                strafe = SAFE_DRIVE_SPEED / 2.0;
-            } else if (gamepad1.dpad_right) {
                 strafe = -SAFE_DRIVE_SPEED / 2.0;
+            } else if (gamepad1.dpad_right) {
+                strafe = SAFE_DRIVE_SPEED / 2.0;
             } else if (gamepad1.dpad_up) {
-                drive = SAFE_DRIVE_SPEED / 2.0;
+                drive = -SAFE_DRIVE_SPEED / 2.0;
             } else if (gamepad1.dpad_down) {
-                drive = -SAFE_STRAFE_SPEED / 2.0;
+                drive = SAFE_STRAFE_SPEED / 2.0;
             }
 
             // Heading Hold Logic
