@@ -181,6 +181,9 @@ public class BioBuzzTeleop extends LinearOpMode
             }
 
             telemetry.addData("Shooter Power", "%.2f", shooterPower);
+            telemetry.addData("Drive Motors (FL, BL, FR, BR)", "%.2f, %.2f, %.2f, %.2f", 
+                    robot.frontLeftPower, robot.backLeftPower, robot.frontRightPower, robot.backRightPower);
+            telemetry.addData("Drive Sticks (Y, X, Yaw)", "%.2f, %.2f, %.2f", drive, strafe, yaw);
             telemetry.update();
         }
     }

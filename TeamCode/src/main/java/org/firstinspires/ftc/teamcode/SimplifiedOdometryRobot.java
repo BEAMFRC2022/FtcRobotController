@@ -15,6 +15,12 @@ public class SimplifiedOdometryRobot {
     public DcMotor backleftmotor;
     public DcMotor backrightmotor;
 
+    // Current motor power levels
+    public double frontLeftPower = 0;
+    public double backLeftPower = 0;
+    public double frontRightPower = 0;
+    public double backRightPower = 0;
+
     public PIDController yawController = new PIDController(0, 0, 0);
 
     public SimplifiedOdometryRobot(LinearOpMode opMode) {
@@ -65,10 +71,10 @@ public class SimplifiedOdometryRobot {
     public void moveRobot(double drive, double strafe, double yaw) {
         double denominator = Math.max(Math.abs(drive) + Math.abs(strafe) + Math.abs(yaw), 1.0);
         
-        double frontLeftPower  = (drive + strafe + yaw) / denominator;
-        double backLeftPower   = (drive - strafe + yaw) / denominator;
-        double frontRightPower = (drive - strafe - yaw) / denominator;
-        double backRightPower  = (drive + strafe - yaw) / denominator;
+        frontLeftPower  = (drive + strafe + yaw) / denominator;
+        backLeftPower   = (drive - strafe + yaw) / denominator;
+        frontRightPower = (drive - strafe - yaw) / denominator;
+        backRightPower  = (drive + strafe - yaw) / denominator;
 
         if (frontleftmotor != null)  frontleftmotor.setPower(frontLeftPower);
         if (backleftmotor != null)   backleftmotor.setPower(backLeftPower);
