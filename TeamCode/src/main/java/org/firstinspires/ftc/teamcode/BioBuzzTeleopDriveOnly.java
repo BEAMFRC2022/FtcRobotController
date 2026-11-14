@@ -7,7 +7,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 @TeleOp(name = "BioBuzz Teleop Drive Only", group = "TeleOp")
 public class BioBuzzTeleopDriveOnly extends LinearOpMode {
 
-    public static final String VERSION = "1.01";
+    public static final String VERSION = "1.02";
 
     double speed_fast = 0.8;
     double speed_slow = 0.5;
@@ -49,16 +49,16 @@ public class BioBuzzTeleopDriveOnly extends LinearOpMode {
             }
 
             // DRIVING SECTION ----------------------------------------------------------------------
-            // Inverted drive and strafe signs to match physical motor geometry while keeping turning correct
+            // Forward: gamepad1.left_stick_y, Strafe: -gamepad1.left_stick_x, Turn: -gamepad1.right_stick_x
             double drive  =  gamepad1.left_stick_y * SAFE_DRIVE_SPEED;
-            double strafe =  gamepad1.left_stick_x * SAFE_STRAFE_SPEED;
+            double strafe = -gamepad1.left_stick_x * SAFE_STRAFE_SPEED;
             double yaw    = -gamepad1.right_stick_x * SAFE_YAW_SPEED;
 
             // Orthogonal DPAD movements
             if (gamepad1.dpad_left) {
-                strafe = -SAFE_DRIVE_SPEED / 2.0;
-            } else if (gamepad1.dpad_right) {
                 strafe = SAFE_DRIVE_SPEED / 2.0;
+            } else if (gamepad1.dpad_right) {
+                strafe = -SAFE_DRIVE_SPEED / 2.0;
             } else if (gamepad1.dpad_up) {
                 drive = -SAFE_DRIVE_SPEED / 2.0;
             } else if (gamepad1.dpad_down) {

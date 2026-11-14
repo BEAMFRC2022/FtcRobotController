@@ -6,16 +6,20 @@
 
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.hardware.limelightvision.LLStatus;
+import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 
 @TeleOp(name="BioBuzz Teleop", group = "Mr. Phil")
 public class BioBuzzTeleop extends LinearOpMode
 {
-    public static final String VERSION = "1.01";
+    public static final String VERSION = "2.00";
 
     double speed_fast = 0.8;
     double speed_slow = 0.5;
@@ -39,6 +43,9 @@ public class BioBuzzTeleop extends LinearOpMode
     private double shooterPower = 0.5;
     private boolean wasDpadUp = false;
     private boolean wasDpadDown = false;
+
+    // Limelight camera hardware
+    private Limelight3A limelight;
 
     @Override public void runOpMode()
     {
@@ -76,10 +83,31 @@ public class BioBuzzTeleop extends LinearOpMode
             shooterleft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         }
 
-        // Wait for driver to press start
+        // Set telemetry transmission interval for smooth updates
+        telemetry.setMsTransmissionInterval(11);
+
+        // Wait for driver to press start while retrying Limelight boot-up
         while(opModeInInit()) {
+            if (limelight == null) {
+                try {
+                    limelight = hardwareMap.get(Limelight3A.class, "limelight");
+                    limelight.pipelineSwitch(0);
+                    limelight.start();
+                    telemetry.addData("Limelight Status", "Initialized Successfully!");
+                } catch (Exception e) {
+                    telemetry.addData("Limelight Status", "Waiting for Limelight (Check DS Config)...");
+                }
+            } else {
+                LLStatus status = limelight.getStatus();
+                if (status != null) {
+                    telemetry.addData("Limelight Status", "Connected (FPS: %d, Temp: %.1f°C)", (int)status.getFps(), status.getTemp());
+                } else {
+                    telemetry.addData("Limelight Status", "Connected & Ready");
+                }
+            }
+
             telemetry.addData("Version", VERSION);
-            telemetry.addData(">", "Touch Play to drive");
+            telemetry.addData(">", "Touch Play to drive BioBuzz Teleop");
             telemetry.addData("Drive Motors", robot.frontleftmotor != null ? "Connected" : "NOT FOUND (check config)");
             telemetry.addData("Shooter Right Motor", shooterright != null ? "Connected" : "NOT FOUND (check config)");
             telemetry.addData("Shooter Left Motor", shooterleft != null ? "Connected" : "NOT FOUND (check config)");
@@ -92,8 +120,7 @@ public class BioBuzzTeleop extends LinearOpMode
 
         waitForStart();
 
-        while (opModeIsActive())
-        {
+        while (opModeIsActive()) {
             robot.readSensors();
 
             // Allow the driver to reset the gyro by pressing both small gamepad buttons
@@ -102,44 +129,90 @@ public class BioBuzzTeleop extends LinearOpMode
             }
 
             // DRIVING SECTION ----------------------------------------------------------------------
+            // Corrected strafe sign (-gamepad1.left_stick_x) so pushing left strafes left, pushing right strafes right
             double drive  =  gamepad1.left_stick_y * SAFE_DRIVE_SPEED;
-            double strafe =  gamepad1.left_stick_x * SAFE_STRAFE_SPEED;
+            double strafe = -gamepad1.left_stick_x * SAFE_STRAFE_SPEED;
             double yaw    = -gamepad1.right_stick_x * SAFE_YAW_SPEED;
 
             // Orthogonal DPAD movements
             if (gamepad1.dpad_left) {
-                strafe = -SAFE_DRIVE_SPEED / 2.0;
-            } else if (gamepad1.dpad_right) {
                 strafe = SAFE_DRIVE_SPEED / 2.0;
+            } else if (gamepad1.dpad_right) {
+                strafe = -SAFE_DRIVE_SPEED / 2.0;
             } else if (gamepad1.dpad_up) {
                 drive = -SAFE_DRIVE_SPEED / 2.0;
             } else if (gamepad1.dpad_down) {
                 drive = SAFE_STRAFE_SPEED / 2.0;
             }
 
-            // Heading Hold Logic
-            if (Math.abs(yaw) > 0.05) {
-                autoHeading = false;
+            // LIMELIGHT VISION NAVIGATION & AUTO-AIM
+            LLResult result = null;
+            boolean autoAiming = gamepad1.b;   // Hold Gamepad 1 B to auto-aim at target (Tags 38-41)
+            boolean autoApproach = gamepad1.a; // Hold Gamepad 1 A to auto-approach target
+
+            if (limelight != null) {
+                result = limelight.getLatestResult();
+            }
+
+            String currentMode = "Manual Driving";
+
+            if (result != null && result.isValid()) {
+                double tx = result.getTx(); // Horizontal angle error (-29.8 to 29.8 deg)
+                double ty = result.getTy(); // Vertical angle error
+                Pose3D botpose = result.getBotpose();
+
+                if (autoAiming) {
+                    double Kp_turn = 0.03;
+                    yaw = -tx * Kp_turn; // Turn towards target
+                    autoHeading = false;
+                    currentMode = "Auto-Aiming (Holding B)";
+                } else if (autoApproach) {
+                    double targetTy = 0.0; 
+                    double Kp_drive = 0.02;
+                    double Kp_turn = 0.03;
+                    drive = (ty - targetTy) * Kp_drive;
+                    yaw = -tx * Kp_turn;
+                    autoHeading = false;
+                    currentMode = "Auto-Approaching (Holding A)";
+                }
+
+                telemetry.addData("Vision Target", "VALID (AprilTag Found)");
+                telemetry.addData("TX (Heading Error)", "%.2f deg", tx);
+                telemetry.addData("TY (Distance Error)", "%.2f deg", ty);
+                if (botpose != null) {
+                    telemetry.addData("Robot Field Position", "X: %.2f, Y: %.2f", botpose.getPosition().x, botpose.getPosition().y);
+                }
             } else {
-                if (!autoHeading && Math.abs(robot.getTurnRate()) < 2.0) {
-                    robot.yawController.reset(robot.getHeading());
-                    autoHeading = true;
+                if (limelight == null) {
+                    telemetry.addData("Vision Status", "Limelight Not Configured");
+                } else {
+                    telemetry.addData("Vision Status", "Searching for Target (Tags 38-41)...");
                 }
             }
 
-            if (autoHeading) {
-                yaw = robot.yawController.getOutput(robot.getHeading());
+            // Heading Hold Logic when not auto-aiming/turning
+            if (!autoAiming && !autoApproach) {
+                if (Math.abs(yaw) > 0.05) {
+                    autoHeading = false;
+                } else {
+                    if (!autoHeading && Math.abs(robot.getTurnRate()) < 2.0) {
+                        robot.yawController.reset(robot.getHeading());
+                        autoHeading = true;
+                    }
+                }
+
+                if (autoHeading) {
+                    yaw = robot.yawController.getOutput(robot.getHeading());
+                }
             }
-            
-            // Speed toggles
-            if(gamepad1.y) {
-                SAFE_DRIVE_SPEED = speed_slow;
-                SAFE_STRAFE_SPEED = speed_slow;
-                SAFE_YAW_SPEED = speed_slow;
-            } else if(gamepad1.a) {
-                SAFE_DRIVE_SPEED = speed_fast;
-                SAFE_STRAFE_SPEED = speed_fast;
-                SAFE_YAW_SPEED = speed_fast;
+
+            // Speed toggles (Y / A buttons when not auto-aiming/approaching)
+            if (!autoAiming && !autoApproach) {
+                if (gamepad1.y) {
+                    SAFE_DRIVE_SPEED = speed_slow;
+                    SAFE_STRAFE_SPEED = speed_slow;
+                    SAFE_YAW_SPEED = speed_slow;
+                }
             }
 
             // Drive the wheels
@@ -184,12 +257,19 @@ public class BioBuzzTeleop extends LinearOpMode
                 if (shooterright != null) shooterright.setPower(0);
             }
 
+            // Driver Station Telemetry Output
             telemetry.addData("Version", VERSION);
+            telemetry.addData("Drive Mode", currentMode);
             telemetry.addData("Shooter Power", "%.2f", shooterPower);
             telemetry.addData("Drive Motors (FL, BL, FR, BR)", "%.2f, %.2f, %.2f, %.2f", 
                     robot.frontLeftPower, robot.backLeftPower, robot.frontRightPower, robot.backRightPower);
             telemetry.addData("Drive Sticks (Y, X, Yaw)", "%.2f, %.2f, %.2f", drive, strafe, yaw);
             telemetry.update();
+        }
+
+        // Stop Limelight polling when OpMode ends
+        if (limelight != null) {
+            limelight.stop();
         }
     }
 }
