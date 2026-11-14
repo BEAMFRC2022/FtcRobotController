@@ -6,10 +6,14 @@ import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 
 @TeleOp(name = "Nav With Limelight", group = "TeleOp")
 public class navwithlimelight extends LinearOpMode {
+
+    public static final String VERSION = "1.00";
 
     // Motor instances for 4 HD Hex motors (Mecanum drive)
     private DcMotor frontleftmotor;
@@ -55,6 +59,7 @@ public class navwithlimelight extends LinearOpMode {
 
         // Initialization phase loop: Allows retrying until the Limelight finishes booting up
         while (opModeInInit()) {
+            telemetry.addData("Version", VERSION);
             if (limelight == null) {
                 try {
                     limelight = hardwareMap.get(Limelight3A.class, "limelight");
@@ -146,6 +151,7 @@ public class navwithlimelight extends LinearOpMode {
                 }
             }
 
+            telemetry.addData("Version", VERSION);
             telemetry.addData("Drive Mode", currentMode);
 
             // 3. Calculate Mecanum Wheel Powers

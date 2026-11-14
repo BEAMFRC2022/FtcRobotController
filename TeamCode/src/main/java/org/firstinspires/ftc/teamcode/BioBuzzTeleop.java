@@ -9,11 +9,14 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 @TeleOp(name="BioBuzz Teleop", group = "Mr. Phil")
 public class BioBuzzTeleop extends LinearOpMode
 {
+    public static final String VERSION = "1.00";
+
     double speed_fast = 0.8;
     double speed_slow = 0.5;
     double intake_power = 1.0;
@@ -75,6 +78,7 @@ public class BioBuzzTeleop extends LinearOpMode
 
         // Wait for driver to press start
         while(opModeInInit()) {
+            telemetry.addData("Version", VERSION);
             telemetry.addData(">", "Touch Play to drive");
             telemetry.addData("Drive Motors", robot.frontleftmotor != null ? "Connected" : "NOT FOUND (check config)");
             telemetry.addData("Shooter Right Motor", shooterright != null ? "Connected" : "NOT FOUND (check config)");
@@ -180,6 +184,7 @@ public class BioBuzzTeleop extends LinearOpMode
                 if (shooterright != null) shooterright.setPower(0);
             }
 
+            telemetry.addData("Version", VERSION);
             telemetry.addData("Shooter Power", "%.2f", shooterPower);
             telemetry.addData("Drive Motors (FL, BL, FR, BR)", "%.2f, %.2f, %.2f, %.2f", 
                     robot.frontLeftPower, robot.backLeftPower, robot.frontRightPower, robot.backRightPower);
