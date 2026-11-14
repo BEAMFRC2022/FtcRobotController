@@ -19,7 +19,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 @TeleOp(name="BioBuzz Teleop", group = "Mr. Phil")
 public class BioBuzzTeleop extends LinearOpMode
 {
-    public static final String VERSION = "2.00";
+    public static final String VERSION = "2.01";
 
     double speed_fast = 0.8;
     double speed_slow = 0.5;
@@ -167,7 +167,7 @@ public class BioBuzzTeleop extends LinearOpMode
                     autoHeading = false;
                     currentMode = "Auto-Aiming (Holding B)";
                 } else if (autoApproach) {
-                    double targetTy = 0.0; 
+                    double targetTy = 9.6; // Calibrated for 1 foot distance from back wall
                     double Kp_drive = 0.02;
                     double Kp_turn = 0.03;
                     drive = (ty - targetTy) * Kp_drive;

@@ -13,7 +13,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 @TeleOp(name = "Nav With Limelight", group = "TeleOp")
 public class navwithlimelight extends LinearOpMode {
 
-    public static final String VERSION = "1.00";
+    public static final String VERSION = "1.01";
 
     // Motor instances for 4 HD Hex motors (Mecanum drive)
     private DcMotor frontleftmotor;
@@ -117,7 +117,8 @@ public class navwithlimelight extends LinearOpMode {
                     currentMode = "Auto-Aiming (Holding B)";
                 } else if (autoApproach) {
                     // Proportional control to drive towards target based on vertical offset (ty)
-                    double targetTy = 0.0; 
+                    double targetTy = 9.6;
+                    // 11/14/2026 We callibrated the robot to be a foot from the back wall
                     double Kp_drive = 0.02;
                     axial = (ty - targetTy) * Kp_drive;
                     
