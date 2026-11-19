@@ -1,0 +1,98 @@
+<html>
+<head>
+<title>software_summary.artifact.md</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #bcbec4;}
+</style>
+</head>
+<body bgcolor="#191a1c">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+software_summary.artifact.md</font>
+</center></td></tr></table>
+<pre><span class="s0"># BioBuzz FTC Software Reference &amp; Operator Guide 
+ 
+This document provides a comprehensive summary of all software features, control interfaces, gamepad button mappings, and vision navigation capabilities implemented for the BioBuzz robot. 
+ 
+--- 
+ 
+## 🤖 Active OpModes Summary 
+ 
+| OpMode Name on Driver Station | Source File | Version | Subsystems Included | Description | 
+| :--- | :--- | :--- | :--- | :--- | 
+| **`BioBuzz Teleop`** | [`BioBuzzTeleop.java`](file:///C:/Users/robot/AndroidStudioProjects/FtcRobotControllerBioBuzz/TeamCode/src/main/java/org/firstinspires/ftc/teamcode/BioBuzzTeleop.java) | **`2.00`** | Drivetrain, Intake, Shooter, Limelight 3A | **Primary Competition TeleOp**: Full drive, intake, shooter, and Limelight 3A auto-aiming/approaching. | 
+| **`BioBuzz Teleop Drive Only`** | [`BioBuzzTeleopDriveOnly.java`](file:///C:/Users/robot/AndroidStudioProjects/FtcRobotControllerBioBuzz/TeamCode/src/main/java/org/firstinspires/ftc/teamcode/BioBuzzTeleopDriveOnly.java) | **`1.02`** | Drivetrain Only | **Secondary Robot TeleOp**: Drivetrain controls only for 4 HD Hex Mecanum motors. | 
+| **`Nav With Limelight`** | [`navwithlimelight.java`](file:///C:/Users/robot/AndroidStudioProjects/FtcRobotControllerBioBuzz/TeamCode/src/main/java/org/firstinspires/ftc/teamcode/navwithlimelight.java) | **`1.00`** | Drivetrain, Limelight 3A | **Vision Test Routine**: Dedicated standalone Limelight navigation testing OpMode. | 
+ 
+--- 
+ 
+## 🎮 Gamepad Control Interface 
+ 
+### 🏎️ Gamepad 1: Driver Controls 
+ 
+&gt; [!NOTE] 
+&gt; Gamepad 1 controls all movement, speed modifiers, gyro heading reset, and Limelight vision assist modes. 
+ 
+| Button / Input | Subsystem / Feature | Action / Behavior | 
+| :--- | :--- | :--- | 
+| **Left Stick Y** | Drivetrain | **Forward / Backward**: Push UP to drive forward, push DOWN to drive backward. | 
+| **Left Stick X** | Drivetrain | **Left / Right Strafe**: Push LEFT to strafe left, push RIGHT to strafe right. | 
+| **Right Stick X** | Drivetrain | **Rotation / Turning**: Push LEFT to spin left, push RIGHT to spin right. | 
+| **D-Pad Up** | Drivetrain | **Cardinal Drive**: Drive pure forward at half speed. | 
+| **D-Pad Down** | Drivetrain | **Cardinal Drive**: Drive pure backward at half speed. | 
+| **D-Pad Left** | Drivetrain | **Cardinal Drive**: Strafe pure left at half speed. | 
+| **D-Pad Right** | Drivetrain | **Cardinal Drive**: Strafe pure right at half speed. | 
+| **Button B (Hold)** | Limelight Vision | **Auto-Aim Assist**: Robot automatically turns to center crosshairs on AprilTags 38, 39, 40, or 41. | 
+| **Button A (Hold)** | Limelight Vision | **Auto-Approach Assist**: Robot automatically drives forward/backward to approach target and centers headings. | 
+| **Button A (Tap)** | Drivetrain | **Fast Speed Toggle**: Sets drive speed multiplier to `0.8` (80% power). | 
+| **Button Y (Tap)** | Drivetrain | **Slow Speed Toggle**: Sets drive speed multiplier to `0.5` (50% power). | 
+| **Options + Share** | Odometry / Gyro | **Gyro Reset**: Re-zeroes IMU gyro odometry heading. | 
+ 
+--- 
+ 
+### 🎯 Gamepad 2: Operator Controls 
+ 
+&gt; [!NOTE] 
+&gt; Gamepad 2 controls the intake mechanism and the dual Ultra Planetary HD Hex motor shooter. 
+ 
+| Button / Input | Subsystem / Feature | Action / Behavior | 
+| :--- | :--- | :--- | 
+| **Right Bumper (Hold)** | Intake Motor | **Forward Intake**: Spins intake motor at full power (`+1.0`). | 
+| **Left Bumper (Hold)** | Intake Motor | **Reverse Intake**: Spins intake motor in reverse (`-1.0`). | 
+| **Button Y (Hold)** | Shooter Motors | **Launch / Shoot**: Spins both shooter motors (`shooterright` &amp; `shooterleft`) at current `shooterPower`. | 
+| **D-Pad Up (Tap)** | Shooter Motors | **Increase Power**: Increments shooter power level by `+0.1` (max `1.0`). | 
+| **D-Pad Down (Tap)** | Shooter Motors | **Decrease Power**: Decrements shooter power level by `-0.1` (min `0.0`). | 
+ 
+--- 
+ 
+## 📷 Vision &amp; Navigation Capabilities (Limelight 3A) 
+ 
+1. **Target Identification**: 
+   * Specifically configured to target **AprilTags 38, 39, 40, and 41** located on the bottom of the hive. 
+2. **Proportional Aiming Control**: 
+   * Calculates horizontal angle error (`tx`) and applies proportional gain (`yaw = -tx * Kp_turn`) to smoothly align crosshairs with the target. 
+3. **Field Position Tracking**: 
+   * Uses AprilTag 3D pose estimation (`botpose`) to calculate real-time robot field coordinates $(X, Y)$ in meters. 
+4. **Boot-Up Resilience**: 
+   * Includes a retry loop in `opModeInInit()` that gracefully waits for the Limelight OS (15–20 sec boot time) to come online without crashing the Control Hub. 
+ 
+--- 
+ 
+## 📺 Driver Station Telemetry Diagnostics 
+ 
+During both **Init** and **Active** match phases, the Driver Station phone displays live diagnostics: 
+ 
+* **`Version`**: Current software build version (e.g. `2.00`). 
+* **`Drive Motors`**: Status of all 4 wheel motors (`Connected` or `NOT FOUND`). 
+* **`Shooter Right / Left Motor`**: Connection status of Ultra Planetary HD Hex motors. 
+* **`Intake Motor`**: Connection status of intake motor. 
+* **`Limelight Status`**: Camera hardware diagnostics (**FPS**, **CPU %**, **Temperature °C**, **Active Pipeline**). 
+* **`Vision Target`**: Displays whether AprilTags are currently `VALID` along with `TX` (heading error), `TY` (vertical angle), and `Botpose X, Y` coordinates. 
+* **`Drive Mode`**: Reports active driver mode (`Manual Driving`, `Auto-Aiming (Holding B)`, or `Auto-Approaching (Holding A)`). 
+* **`Motors (FL, BL, FR, BR)`**: Real-time wheel power percentages. 
+* **`Shooter Power`**: Current shooter motor power level setting. 
+</span></pre>
+</body>
+</html>

@@ -3,11 +3,12 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.hardware.limelightvision.Limelight3A;
 
 @TeleOp(name = "BioBuzz Teleop Drive Only", group = "TeleOp")
 public class BioBuzzTeleopDriveOnly extends LinearOpMode {
 
-    public static final String VERSION = "1.02";
+    public static final String VERSION = "1.03";
 
     double speed_fast = 0.8;
     double speed_slow = 0.5;
@@ -20,6 +21,10 @@ public class BioBuzzTeleopDriveOnly extends LinearOpMode {
     ElapsedTime stopTime = new ElapsedTime();
     boolean autoHeading  = false;
 
+    // Limelight camera hardware (disabled by default since camera is not attached to this robot configuration)
+    private Limelight3A limelight = null;
+    private static final boolean ENABLE_LIMELIGHT = false;
+
     // Instance of SimplifiedOdometryRobot helper
     SimplifiedOdometryRobot robot = new SimplifiedOdometryRobot(this);
 
@@ -30,7 +35,16 @@ public class BioBuzzTeleopDriveOnly extends LinearOpMode {
 
         // Wait for driver to press start
         while (opModeInInit()) {
+            if (ENABLE_LIMELIGHT && limelight == null) {
+                try {
+                    limelight = hardwareMap.get(Limelight3A.class, "limelight");
+                    limelight.pipelineSwitch(0);
+                    limelight.start();
+                } catch (Exception ignored) {}
+            }
+
             telemetry.addData("Version", VERSION);
+            telemetry.addData("Limelight", ENABLE_LIMELIGHT ? "Enabled" : "Disabled (No Camera on Robot)");
             telemetry.addData(">", "Touch Play to drive BioBuzz (Drive Only)");
             telemetry.addData("Drive Motors", robot.frontleftmotor != null ? "Connected" : "NOT FOUND (check config)");
 

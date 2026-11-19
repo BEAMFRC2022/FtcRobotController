@@ -45,8 +45,9 @@ public class BioBuzzTeleop extends LinearOpMode
     private boolean wasDpadUp = false;
     private boolean wasDpadDown = false;
 
-    // Limelight camera hardware
-    private Limelight3A limelight;
+    // Limelight camera hardware (disabled by default since camera is not attached to this robot configuration)
+    private Limelight3A limelight = null;
+    private static final boolean ENABLE_LIMELIGHT = false;
 
     @Override public void runOpMode()
     {
@@ -89,7 +90,7 @@ public class BioBuzzTeleop extends LinearOpMode
 
         // Wait for driver to press start while retrying Limelight boot-up
         while(opModeInInit()) {
-            if (limelight == null) {
+            if (ENABLE_LIMELIGHT && limelight == null) {
                 try {
                     limelight = hardwareMap.get(Limelight3A.class, "limelight");
                     limelight.pipelineSwitch(0);
@@ -98,7 +99,7 @@ public class BioBuzzTeleop extends LinearOpMode
                 } catch (Exception e) {
                     telemetry.addData("Limelight Status", "Waiting for Limelight (Check DS Config)...");
                 }
-            } else {
+            } else if (ENABLE_LIMELIGHT) {
                 LLStatus status = limelight.getStatus();
                 if (status != null) {
                     telemetry.addData("Limelight Status", "Connected (FPS: %d, Temp: %.1f°C)", (int)status.getFps(), status.getTemp());
@@ -108,6 +109,7 @@ public class BioBuzzTeleop extends LinearOpMode
             }
 
             telemetry.addData("Version", VERSION);
+            telemetry.addData("Limelight", ENABLE_LIMELIGHT ? "Enabled" : "Disabled (No Camera on Robot)");
             telemetry.addData(">", "Touch Play to drive BioBuzz Teleop");
             telemetry.addData("Drive Motors", robot.frontleftmotor != null ? "Connected" : "NOT FOUND (check config)");
             telemetry.addData("Shooter Right Motor", shooterright != null ? "Connected" : "NOT FOUND (check config)");
@@ -148,8 +150,8 @@ public class BioBuzzTeleop extends LinearOpMode
 
             // LIMELIGHT VISION NAVIGATION & AUTO-AIM
             LLResult result = null;
-            boolean autoAiming = gamepad1.b;   // Hold Gamepad 1 B to auto-aim at target (Tags 38-41)
-            boolean autoApproach = gamepad1.a; // Hold Gamepad 1 A to auto-approach target
+            boolean autoAiming = ENABLE_LIMELIGHT && gamepad1.b;   // Hold Gamepad 1 B to auto-aim at target (Tags 38-41)
+            boolean autoApproach = ENABLE_LIMELIGHT && gamepad1.a; // Hold Gamepad 1 A to auto-approach target
 
             if (limelight != null) {
                 result = limelight.getLatestResult();
